@@ -1,6 +1,7 @@
 package balancer
 
 import (
+	"fmt"
 	"sync"
 
 	balancerpb "github.com/bsm/grpclb/grpclb_balancer_v1"
@@ -40,6 +41,10 @@ func New(discovery Discovery, config *Config) *Server {
 func (b *Server) Servers(ctx context.Context, req *balancerpb.ServersRequest) (*balancerpb.ServersResponse, error) {
 	if req.Target == "" {
 		return &balancerpb.ServersResponse{}, nil
+	}
+
+	if b.config.ServicePrefix != "" {
+		req.Target = fmt.Sprintf("%s-%s", b.config.ServicePrefix, req.Target)
 	}
 
 	servers, err := b.GetServers(req.Target)

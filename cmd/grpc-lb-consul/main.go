@@ -16,15 +16,17 @@ import (
 )
 
 var flags struct {
-	addr    string
-	consul  string
-	version bool
+	addr          string
+	servicePrefix string
+	consul        string
+	version       bool
 }
 
 var version string
 
 func init() {
 	flag.StringVar(&flags.addr, "addr", ":8383", "Bind address. Default: :8383")
+	flag.StringVar(&flags.servicePrefix, "prefix", "", "Service prefix to distinct services of different environments (will be add to each requested target)")
 	flag.StringVar(&flags.consul, "consul", "127.0.0.1:8500", "Consul API address. Default: 127.0.0.1:8500")
 	flag.BoolVar(&flags.version, "version", false, "Print version and exit")
 }
@@ -51,7 +53,9 @@ func listenAndServe() error {
 		return err
 	}
 
-	lb := balancer.New(discovery, nil)
+	lb := balancer.New(discovery, &balancer.Config{
+		ServicePrefix: flags.servicePrefix,
+	})
 	defer lb.Reset()
 
 	srv := grpc.NewServer()

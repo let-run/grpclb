@@ -9,6 +9,8 @@ type Config struct {
 	// Default: LeastBusyBalancer
 	Balancer Balancer
 
+	ServicePrefix string
+
 	Discovery struct {
 		// Interval between service discovery checks
 		// Default: 5s
@@ -39,5 +41,6 @@ func (c *Config) norm() *Config {
 	if c.LoadReport.MaxFailures == 0 {
 		c.LoadReport.MaxFailures = 3
 	}
+
 	return c
 }
