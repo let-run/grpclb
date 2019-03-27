@@ -3,6 +3,7 @@ package balancer
 import (
 	"strings"
 	"sync/atomic"
+	"time"
 
 	backendpb "github.com/bsm/grpclb/grpclb_backend_v1"
 	balancerpb "github.com/bsm/grpclb/grpclb_balancer_v1"
@@ -26,20 +27,24 @@ type backend struct {
 }
 
 func newBackend(target, address string, maxFailures int) (*backend, error) {
-	cc, err := grpc.Dial(address, grpc.WithInsecure())
-	if err != nil {
-		return nil, err
-	}
+	var err error
 
 	b := &backend{
-		cc:  cc,
-		cln: backendpb.NewLoadReportClient(cc),
-
 		target:  target,
 		address: address,
 
 		maxFailures: maxFailures,
 	}
+
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+	b.cc, err = grpc.DialContext(ctx, address, grpc.WithInsecure(), grpc.WithBlock())
+	grpclog.Info("connect to:", address)
+	if err != nil {
+		grpclog.Infof("can't connect to load reporter: %v", err)
+		return b, nil
+	}
+
+	b.cln = backendpb.NewLoadReportClient(b.cc)
 
 	if err := b.UpdateScore(); err != nil {
 		b.Close()
@@ -61,6 +66,10 @@ func (b *backend) Score() int64 {
 }
 
 func (b *backend) UpdateScore() error {
+	if b.cln == nil {
+		return nil
+	}
+
 	resp, err := b.cln.Load(context.Background(), &backendpb.LoadRequest{})
 	if err != nil {
 		return b.handleError(err)
@@ -71,6 +80,10 @@ func (b *backend) UpdateScore() error {
 }
 
 func (b *backend) Close() error {
+	if b.cc == nil {
+		return nil
+	}
+
 	return b.cc.Close()
 }
 
